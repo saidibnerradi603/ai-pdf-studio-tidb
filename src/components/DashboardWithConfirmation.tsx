@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, CheckCircle } from 'lucide-react'
@@ -8,20 +8,64 @@ import Dashboard from '@/pages/Dashboard'
 export default function DashboardWithConfirmation() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [isConfirming, setIsConfirming] = useState(false)
+  const navigate = useNavigate()
   const { toast } = useToast()
 
   useEffect(() => {
     const handleEmailConfirmation = async () => {
+      // Check for hash parameters (Supabase auth callback)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const access_token = hashParams.get('access_token')
+      const refresh_token = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+      
+      // Also check search parameters for backward compatibility
       const token_hash = searchParams.get('token_hash')
-      const type = searchParams.get('type')
+      const search_type = searchParams.get('type')
 
-      if (token_hash && type) {
+      if (access_token && refresh_token && type === 'signup') {
+        setIsConfirming(true)
+        
+        try {
+          // Set the session with the tokens from the URL
+          const { error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token
+          })
+
+          if (error) {
+            toast({
+              title: "Email confirmation failed",
+              description: error.message,
+              variant: "destructive",
+            })
+          } else {
+            toast({
+              title: "Email confirmed successfully!",
+              description: "Welcome to AI PDF Studio. Your account is now active.",
+              duration: 5000,
+            })
+            
+            // Clean up URL by navigating to clean dashboard
+            navigate('/dashboard', { replace: true })
+          }
+        } catch (err) {
+          toast({
+            title: "Confirmation error",
+            description: "An unexpected error occurred during email confirmation.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsConfirming(false)
+        }
+      } else if (token_hash && search_type) {
+        // Handle legacy token_hash method
         setIsConfirming(true)
         
         try {
           const { error } = await supabase.auth.verifyOtp({
             token_hash,
-            type: type as any
+            type: search_type as any
           })
 
           if (error) {
@@ -52,7 +96,7 @@ export default function DashboardWithConfirmation() {
     }
 
     handleEmailConfirmation()
-  }, [searchParams, setSearchParams, toast])
+  }, [searchParams, setSearchParams, navigate, toast])
 
   if (isConfirming) {
     return (
