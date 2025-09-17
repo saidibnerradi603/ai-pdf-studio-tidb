@@ -213,11 +213,9 @@ export const StudioPanel = ({ onGenerateContent, isLoading, pdf }: StudioPanelPr
           })}
         </div>
 
-        <ScrollArea className="flex-1">
-          <div className="pr-4">
-            {renderContent()}
-          </div>
-        </ScrollArea>
+        <div className="flex-1 min-h-0">
+          {renderContent()}
+        </div>
       </div>
 
       {/* FAQ Options Dialog */}
